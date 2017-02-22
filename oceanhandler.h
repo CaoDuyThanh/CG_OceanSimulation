@@ -8,10 +8,11 @@
 #include "vector3s.h"
 #include "complexvectornormal.h"
 #include "vertexocean.h"
+#include "ffthandler.h"
 
 using namespace std;
 
-class OceanHandler
+class OceanHandler: FFTHandler
 {
 public:
     int N;
@@ -31,6 +32,7 @@ public:
     Complex hTile(float _t, int _n_prime, int _m_prime);
     ComplexVectorNormal h_D_n(Vector2s x, float t);
     void evaluateWaves(float _t);
+    void evaluateWavesFFT(float _t);
     void Render();
 
     ~OceanHandler();
