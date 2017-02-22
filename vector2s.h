@@ -16,6 +16,7 @@ public:
     void Normalize();
     double Dot(Vector2s b);
     Vector2s Unit();
+    Vector2s Conj();
 
     // Operator
     bool operator == (const Vector2s& v);

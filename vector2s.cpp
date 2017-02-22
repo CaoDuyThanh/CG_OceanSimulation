@@ -29,6 +29,10 @@ Vector2s Vector2s::Unit() {
     return Vector2s(X / length, Y / length);
 }
 
+Vector2s Vector2s::Conj() {
+    return Vector2s(this->X, this->Y);
+}
+
 // ------------------------------------------------------------------------------------------------
 bool Vector2s::operator == (const Vector2s& v){
     return X == v.X && Y == v.Y;
