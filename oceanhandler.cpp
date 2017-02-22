@@ -6,7 +6,7 @@ OceanHandler::OceanHandler(int _N,
                            double _A,
                            double _Length,
                            double _G,
-                           Vector2s _W)
+                           Vector2s _W) : FFTHandler(_N)
 {
     this->N = _N;
     this->A = _A;
@@ -15,12 +15,12 @@ OceanHandler::OceanHandler(int _N,
     this->Length = _Length;
     this->W = _W;
 
-    this->Vertices = new VertexOcean[this->Nplus1 * this->Nplus1];
+    this->Vertices = new VertexOcean[this->N * this->N];
     int index;
     Complex htile0, htile0mk_conj;
-    for (int m_prime = 0; m_prime < this->Nplus1; m_prime++) {
-        for (int n_prime = 0; n_prime < this->Nplus1; n_prime++) {
-            index = m_prime * this->Nplus1 + n_prime;
+    for (int m_prime = 0; m_prime < this->N; m_prime++) {
+        for (int n_prime = 0; n_prime < this->N; n_prime++) {
+            index = m_prime * this->N + n_prime;
 
             htile0        = hTile_0(n_prime, m_prime);
             htile0mk_conj = hTile_0(n_prime, m_prime).Conj();
@@ -91,7 +91,7 @@ Complex OceanHandler::hTile_0(int _n_prime, int _m_prime) {
 }
 
 Complex OceanHandler::hTile(float _t, int _n_prime, int _m_prime) {
-    int index = _m_prime * this->Nplus1 + _n_prime;
+    int index = _m_prime * this->N + _n_prime;
 
     Complex htile0(this->Vertices[index].A, this->Vertices[index].A);       // What is a, b
     Complex htile0mkconj(this->Vertices[index]._A, this->Vertices[index]._B); // What is _a, _b
@@ -115,9 +115,9 @@ ComplexVectorNormal OceanHandler::h_D_n(Vector2s x, float t) {
     Vector2s k;
     float kx, kz, k_length, k_dot_x;
 
-    for (int m_prime = 0; m_prime < this->Nplus1; m_prime++) {
+    for (int m_prime = 0; m_prime < this->N; m_prime++) {
         kz = 2.0f * PI * (m_prime - this->N / 2.0f) / this->Length;
-        for (int n_prime = 0; n_prime < this->Nplus1; n_prime++) {
+        for (int n_prime = 0; n_prime < this->N; n_prime++) {
             kx = 2.0 * PI * (n_prime - this->N / 2.0f) / this->Length;
             k = Vector2s(kx, kz);
 
@@ -149,9 +149,9 @@ void OceanHandler::evaluateWaves(float _t) {
     Vector2s d;
     ComplexVectorNormal h_d_n;
 
-    for (int m_prime = 0; m_prime < Nplus1; m_prime++) {
-        for (int n_prime = 0; n_prime < Nplus1; n_prime++) {
-            index = m_prime * this->Nplus1 + n_prime;
+    for (int m_prime = 0; m_prime < N; m_prime++) {
+        for (int n_prime = 0; n_prime < N; n_prime++) {
+            index = m_prime * this->N + n_prime;
 
             x = Vector2s(this->Vertices[index].X, this->Vertices[index].Z);
 
@@ -169,14 +169,89 @@ void OceanHandler::evaluateWaves(float _t) {
     }
 }
 
+void OceanHandler::evaluateWavesFFT(float t) {
+    // Precalculate h'
+    Complex htile;
+    int index;
+    for (int m_prime = 0; m_prime < N; m_prime++) {
+        for (int n_prime = 0; n_prime < N; n_prime++) {
+            index = m_prime * this->N + n_prime;
+            htile = hTile(t, n_prime, m_prime);
+            this->matrix[index] = htile;
+        }
+    }
+    this->calculateFFT();
+    for (int m_prime = 0; m_prime < N; m_prime++) {
+        for (int n_prime = 0; n_prime < N; n_prime++) {
+            index = m_prime * this->N + n_prime;
+            this->Vertices[index].Y = this->result[index].Real;
+        }
+    }
+
+    float lambda = -1.0;
+    // -------------------------------------------------------------
+    float kx, kz, k_length;
+    Vector2s k;
+    for (int m_prime = 0; m_prime < N; m_prime++) {
+        kz = 2.0f * PI * (m_prime - this->N / 2.0f) / this->Length;
+        for (int n_prime = 0; n_prime < N; n_prime++) {
+            index = m_prime * this->N + n_prime;
+            kx = 2.0 * PI * (n_prime - this->N / 2.0f) / this->Length;
+            k = Vector2s(kx, kz);
+            k_length = k.Length();
+            if (k_length < 0.000001) {
+                this->matrixD[index] = Complex(0, 0);
+            } else {
+                this->matrixD[index] = Complex(0, kx / k_length) * this->matrix[index];
+            }
+        }
+    }
+    Complex* tempMatrix = this->matrix;
+    this->matrix = this->matrixD;
+    this->calculateFFT();
+    for (int m_prime = 0; m_prime < N; m_prime++) {
+        for (int n_prime = 0; n_prime < N; n_prime++) {
+            index = m_prime * this->N + n_prime;
+            this->Vertices[index].X = this->Vertices[index].Ox + lambda * this->result[index].Real;
+        }
+    }
+    this->matrix = tempMatrix;
+
+    // --------------------------------------------------------------
+    for (int m_prime = 0; m_prime < N; m_prime++) {
+        kz = 2.0f * PI * (m_prime - this->N / 2.0f) / this->Length;
+        for (int n_prime = 0; n_prime < N; n_prime++) {
+            index = m_prime * this->N + n_prime;
+            kx = 2.0 * PI * (n_prime - this->N / 2.0f) / this->Length;
+            k = Vector2s(kx, kz);
+            k_length = k.Length();
+            if (k_length < 0.000001) {
+                this->matrixD[index] = Complex(0, 0);
+            } else {
+                this->matrixD[index] = Complex(0, kz / k_length) * this->matrix[index];
+            }
+        }
+    }
+    tempMatrix = this->matrix;
+    this->matrix = this->matrixD;
+    this->calculateFFT();
+    for (int m_prime = 0; m_prime < N; m_prime++) {
+        for (int n_prime = 0; n_prime < N; n_prime++) {
+            index = m_prime * this->N + n_prime;
+            this->Vertices[index].Z = this->Vertices[index].Oz + lambda * this->result[index].Real;
+        }
+    }
+    this->matrix = tempMatrix;
+}
+
 void OceanHandler::Render() {
     glBegin(GL_TRIANGLES);
     for (int m_prime = 0; m_prime < N; m_prime++) {
         for (int n_prime = 0; n_prime < N; n_prime++) {
-            VertexOcean A = this->Vertices[m_prime * this->Nplus1 + n_prime];
-            VertexOcean B = this->Vertices[m_prime * this->Nplus1 + n_prime + 1];
-            VertexOcean C = this->Vertices[(m_prime + 1) * (this->Nplus1) + n_prime];
-            VertexOcean D = this->Vertices[(m_prime + 1) * (this->Nplus1) + n_prime + 1];
+            VertexOcean A = this->Vertices[m_prime * this->N + n_prime];
+            VertexOcean B = this->Vertices[m_prime * this->N + n_prime + 1];
+            VertexOcean C = this->Vertices[(m_prime + 1) * (this->N) + n_prime];
+            VertexOcean D = this->Vertices[(m_prime + 1) * (this->N) + n_prime + 1];
             glVertex3d(A.X, A.Y, A.Z);
             glVertex3d(C.X, C.Y, C.Z);
             glVertex3d(B.X, B.Y, B.Z);
