@@ -16,6 +16,7 @@ public:
     bool operator == (const Complex& c);
     bool operator != (const Complex& c);
 
+    void operator = (const Complex& c);
     Complex& operator += (const Complex& c);
     Complex& operator -= (const Complex& c);
     Complex& operator *= (const Complex& c);

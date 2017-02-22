@@ -16,6 +16,11 @@ Complex Complex::Conj() {
 }
 
 // Operator
+void Complex::operator = (const Complex& c) {
+    this->Real = c.Real;
+    this->Img = c.Img;
+}
+
 bool Complex::operator == (const Complex& c){
     return (this->Real == c.Real && this->Img == c.Img);
 }
