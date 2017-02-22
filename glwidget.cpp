@@ -53,7 +53,7 @@ void GLWidget::paintGL() {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     t += 1.0 / 30;
 
-    ocean->evaluateWaves(t);
+    ocean->evaluateWavesFFT(t);
     ocean->Render();
     QGLWidget::swapBuffers();
 }
