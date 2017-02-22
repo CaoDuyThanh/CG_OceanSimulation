@@ -17,7 +17,8 @@ SOURCES += \
     vector3s.cpp \
     complexvectornormal.cpp \
     vertexocean.cpp \
-    glwidget.cpp
+    glwidget.cpp \
+    ffthandler.cpp
 
 HEADERS += \
     oceanhandler.h \
@@ -26,4 +27,5 @@ HEADERS += \
     vector3s.h \
     complexvectornormal.h \
     vertexocean.h \
-    glwidget.h
+    glwidget.h \
+    ffthandler.h
